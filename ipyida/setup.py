@@ -5,7 +5,7 @@
 # Author: Marc-Etienne M.Léveillé <leveille@eset.com>
 # See LICENSE file for redistribution.
 
-from distutils.core import setup
+from setuptools import setup
 
 setup(name='ipyida',
       version='1.3',
@@ -20,4 +20,8 @@ setup(name='ipyida',
           'qtconsole>=4.3'
       ],
       license="BSD",
-)
+      entry_points={
+          "idapython_plugins": [
+              "ipyida=ipyida.ida_plugin:IPyIDAPlugIn"
+          ]
+      })
