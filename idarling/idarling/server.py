@@ -66,7 +66,7 @@ class DedicatedServer(Server):
         return logger
 
 
-def main(args):
+def start(args):
     """
     The entry point of a Python program.
     """
@@ -93,7 +93,7 @@ def main(args):
     return app.exec_()
 
 
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument('--help', action='help',
                         help='show this help message and exit')
@@ -110,4 +110,4 @@ if __name__ == '__main__':
     security.add_argument('--no-ssl', action='store_true',
                           help='disable SSL (not recommended)')
 
-    main(parser.parse_args())
+    start(parser.parse_args())
