@@ -1,4 +1,4 @@
-# -*- encoding: utf8 -*-
+# -*- encoding: utf-8 -*-
 #
 # This module integreate a qtconsole to the IDA GUI.
 # See README.adoc for more details.

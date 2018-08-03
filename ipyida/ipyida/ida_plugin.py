@@ -1,4 +1,4 @@
-# -*- encoding: utf8 -*-
+# -*- encoding: utf-8 -*-
 #
 # IDA plugin definition.
 #
@@ -15,7 +15,7 @@ class IPyIDAPlugIn(idaapi.plugin_t):
     flags = 0
     comment = ""
     help = "Starts an IPython qtconsole in IDA Pro"
-    
+
     def init(self):
         global _kernel
         self.kernel = _kernel

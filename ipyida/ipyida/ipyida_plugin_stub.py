@@ -1,4 +1,4 @@
-# -*- encoding: utf8 -*-
+# -*- encoding: utf-8 -*-
 #
 # Simple stub to drop in IDA's "plugins" directory.
 #

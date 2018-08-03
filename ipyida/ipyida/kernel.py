@@ -1,4 +1,4 @@
-# -*- encoding: utf8 -*-
+# -*- encoding: utf-8 -*-
 #
 # This module allows an IPython to be embeded inside IDA.
 # You need the IPython module to be accessible from IDA for this to work.
@@ -57,7 +57,7 @@ class IPythonKernel(object):
     def __init__(self):
         self._timer = None
         self.connection_file = None
-    
+
     def start(self):
         if self._timer is not None:
             raise Exception("IPython kernel is already running.")
@@ -77,7 +77,7 @@ class IPythonKernel(object):
             main = app.kernel.shell._orig_sys_modules_main_mod
             if main is not None:
                 sys.modules[app.kernel.shell._orig_sys_modules_main_name] = main
-        
+
             # IPython <= 3.2.x will send exception to sys.__stderr__ instead of
             # sys.stderr. IDA's console will not be able to display exceptions if we
             # don't send it to IDA's sys.stderr. To fix this, we call both the
@@ -99,7 +99,7 @@ class IPythonKernel(object):
 
         app.kernel.start()
         app.kernel.do_one_iteration()
-    
+
         self.connection_file = app.connection_file
 
         def ipython_kernel_iteration():
