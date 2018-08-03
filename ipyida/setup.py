@@ -17,7 +17,8 @@ setup(name='ipyida',
       install_requires=[
           'ipython>=4.6,<6',
           'ipykernel>=4.6',
-          'qtconsole>=4.3'
+          'qtconsole>=4.3',
+          'pyzmq>=17.0.0',
       ],
       license="BSD",
       entry_points={
