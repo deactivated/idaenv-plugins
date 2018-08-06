@@ -550,7 +550,7 @@ class AddServerDialog(QDialog):
         self._serverNameLabel = QLabel("<b>Server Port</b>")
         layout.addWidget(self._serverNameLabel)
         self._serverPort = QLineEdit()
-        self._serverPort.setPlaceholderText("31013")
+        self._serverPort.setText("31013")
         layout.addWidget(self._serverPort)
 
         self._noSSLCheckbox = QCheckBox("Disable SSL")
