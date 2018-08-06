@@ -16,6 +16,7 @@ setup(name='idarling',
       url='https://github.com/IDArlingTeam/IDArling/',
       packages=find_packages(),
       install_requires=requires,
+      include_package_data=True,
       entry_points={
           "idapython_plugins": [
               "idarling=idarling.plugin:Plugin"
