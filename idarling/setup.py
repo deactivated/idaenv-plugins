@@ -4,8 +4,9 @@ import sys
 from setuptools import find_packages, setup
 
 
+requires = ["msgpack"]
+
 # Install PyQt5 for the server if installing into Python 3
-requires = []
 if sys.version_info[0] == 3:
     requires.append("PyQt5")
 
