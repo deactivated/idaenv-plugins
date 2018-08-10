@@ -23,6 +23,7 @@ import ida_lines
 import ida_nalt
 import ida_name
 import ida_pro
+import ida_range
 import ida_segment
 import ida_struct
 import ida_typeinf
@@ -226,6 +227,29 @@ class CmtChangedEvent(Event):
         ida_bytes.set_cmt(self.ea, Event.encode(self.comment), self.rptble)
 
 
+class RangeCmtChangedEvent(Event):
+    __event__ = 'range_cmt_changed'
+
+    def __init__(self, kind, a, cmt, rptble):
+        super(RangeCmtChangedEvent, self).__init__()
+        self.kind = kind
+        self.start_ea = a.start_ea
+        self.end_ea = a.end_ea
+        self.cmt = Event.decode(cmt)
+        self.rptble = rptble
+
+    def __call__(self):
+        cmt = Event.encode(self.cmt)
+        if self.kind == ida_range.RANGE_KIND_FUNC:
+            func = ida_funcs.get_func(self.start_ea)
+            ida_funcs.set_func_cmt(func, cmt, self.rptble)
+        elif self.kind == ida_range.RANGE_KIND_SEGMENT:
+            segment = ida_segment.getseg(self.start_ea)
+            ida_segment.set_segment_cmt(segment, cmt, self.rptble)
+        else:
+            logger.warning("Unsupported range kind: %d" % self.kind)
+
+
 class ExtraCmtChangedEvent(Event):
     __event__ = 'extra_cmt_changed'
 
@@ -249,14 +273,18 @@ class TiChangedEvent(Event):
     def __init__(self, ea, py_type):
         super(TiChangedEvent, self).__init__()
         self.ea = ea
-        self.py_type = [Event.decode_bytes(t) for t in py_type]
+        if py_type is None:
+            self.py_type = []
+        else:
+            self.py_type = [Event.decode_bytes(t) for t in py_type]
 
     def __call__(self):
         py_type = [Event.encode_bytes(t) for t in self.py_type]
         if len(py_type) == 3:
             py_type = py_type[1:]
-        ida_typeinf.apply_type(None, py_type[0], py_type[1], self.ea,
-                               ida_typeinf.TINFO_DEFINITE)
+        if len(py_type) >= 2:
+            ida_typeinf.apply_type(None, py_type[0], py_type[1], self.ea,
+                                   ida_typeinf.TINFO_DEFINITE)
 
 
 class OpTypeChangedEvent(Event):
@@ -568,7 +596,7 @@ class SegmAddedEvent(Event):
                  comb, perm, bitness, flags):
         super(SegmAddedEvent, self).__init__()
         self.name = Event.decode(name)
-        self.class_ = class_
+        self.class_ = Event.decode(class_)
         self.start_ea = start_ea
         self.end_ea = end_ea
         self.orgbase = orgbase
@@ -588,7 +616,9 @@ class SegmAddedEvent(Event):
         seg.perm = self.perm
         seg.bitness = self.bitness
         seg.flags = self.flags
-        ida_segment.add_segm_ex(seg, Event.encode(self.name), self.class_,
+        ida_segment.add_segm_ex(seg,
+                                Event.encode(self.name),
+                                Event.encode(self.class_),
                                 ida_segment.ADDSEG_QUIET |
                                 ida_segment.ADDSEG_NOSREG)
 
@@ -648,11 +678,11 @@ class SegmClassChangedEvent(Event):
     def __init__(self, ea, sclass):
         super(SegmClassChangedEvent, self).__init__()
         self.ea = ea
-        self.sclass = sclass
+        self.sclass = Event.decode(sclass)
 
     def __call__(self):
         seg = ida_segment.getseg(self.ea)
-        ida_segment.set_segm_class(seg, self.sclass)
+        ida_segment.set_segm_class(seg, Event.encode(self.sclass))
 
 
 class SegmAttrsUpdatedEvent(Event):
@@ -786,9 +816,10 @@ class UserLvarSettingsEvent(HexRaysEvent):
         for lv in self.lvar_settings['lvvec']:
             lvinf.lvvec.push_back(
                 UserLvarSettingsEvent._get_lvar_saved_info(lv))
-        lvinf.sizes = ida_pro.intvec_t()
-        for i in self.lvar_settings['sizes']:
-            lvinf.sizes.push_back(i)
+        if hasattr(lvinf, 'sizes'):
+            lvinf.sizes = ida_pro.intvec_t()
+            for i in self.lvar_settings['sizes']:
+                lvinf.sizes.push_back(i)
         lvinf.lmaps = ida_hexrays.lvar_mapping_t()
         for key, val in self.lvar_settings['lmaps']:
             key = UserLvarSettingsEvent._get_lvar_locator(key)
