@@ -27,7 +27,26 @@ import ida_segment
 import ida_struct
 import ida_typeinf
 
-from .events import *
+from .events import Event
+from .events import (BytePatchedEvent, CmtChangedEvent, DeletingFuncEvent,
+                     EnumBfChangedEvent, EnumCmtChangedEvent, EnumCreatedEvent,
+                     EnumDeletedEvent, EnumMemberCreatedEvent,
+                     EnumMemberDeletedEvent, EnumRenamedEvent,
+                     ExpandingStrucEvent, ExtraCmtChangedEvent, FuncAddedEvent,
+                     FuncTailAppendedEvent, FuncTailDeletedEvent,
+                     LocalTypesChangedEvent, MakeCodeEvent, MakeDataEvent,
+                     OpTypeChangedEvent, RangeCmtChangedEvent, RenamedEvent,
+                     SegmAddedEvent, SegmAttrsUpdatedEvent,
+                     SegmClassChangedEvent, SegmDeletedEvent,
+                     SegmEndChangedEvent, SegmNameChangedEvent,
+                     SegmStartChangedEvent, SetFuncEndEvent, SetFuncStartEvent,
+                     StrucCmtChangedEvent, StrucCreatedEvent,
+                     StrucDeletedEvent, StrucMemberChangedEvent,
+                     StrucMemberCreatedEvent, StrucMemberDeletedEvent,
+                     StrucMemberRenamedEvent, StrucRenamedEvent,
+                     TailOwnerChangedEvent, TiChangedEvent, UndefinedEvent,
+                     UserCmtsEvent, UserIflagsEvent, UserLabelsEvent,
+                     UserLvarSettingsEvent, UserNumformsEvent)
 
 logger = logging.getLogger('IDArling.Core')
 
