@@ -735,9 +735,9 @@ class HexRaysEvent(Event):
         """
         Refresh the pseudocode view in IDA.
         """
-        names = ['Pseudocode-%c' % chr(ord('A') + i) for i in range(5)]
+        names = [b'Pseudocode-%c' % (ord('A') + i) for i in range(5)]
         for name in names:
-            widget = ida_kernwin.find_widget(str(name))
+            widget = ida_kernwin.find_widget(name)
             if widget:
                 vu = ida_hexrays.get_widget_vdui(widget)
                 vu.refresh_view(True)
