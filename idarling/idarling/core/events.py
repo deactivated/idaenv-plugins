@@ -44,6 +44,8 @@ class Event(DefaultEvent):
         :param s: the Python string
         :return: the IDA string
         """
+        if s is None:
+            return None
         return s.encode('utf-8')
 
     @staticmethod
@@ -54,6 +56,8 @@ class Event(DefaultEvent):
         :param s: the IDA string
         :return: the Python string
         """
+        if s is None:
+            return None
         return s.decode('utf-8')
 
     def __call__(self):
