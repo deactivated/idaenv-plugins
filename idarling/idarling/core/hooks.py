@@ -150,7 +150,7 @@ class IDBHooks(Hooks, ida_idp.IDB_Hooks):
             if ret is not None:
                 type_str, fields_str = ret
                 type_name = ida_typeinf.get_numbered_type_name(
-                                ida_typeinf.cvar.idati, ordinal)
+                    ida_typeinf.cvar.idati, ordinal)
                 cur_ti = ida_typeinf.tinfo_t()
                 cur_ti.deserialize(ida_typeinf.cvar.idati, type_str,
                                    fields_str)
