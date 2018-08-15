@@ -205,8 +205,3 @@ class Findcrypt_Plugin_t(idaapi.plugin_t):
 
     def run(self, arg):
         self.search()
-
-
-# register IDA plugin
-def PLUGIN_ENTRY():
-    return Findcrypt_Plugin_t()
