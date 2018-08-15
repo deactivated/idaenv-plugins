@@ -39,10 +39,10 @@ class Event(DefaultEvent):
     @staticmethod
     def encode(s):
         """
-        Encodes a unicode string to a string using the appropriate charset.
+        Encodes a unicode string into UTF-8 bytes.
 
-        :param s: the Python string
-        :return: the IDA string
+        :param s: the unicode string
+        :return: the utf-8 bytes
         """
         if s is None:
             return None
@@ -51,10 +51,10 @@ class Event(DefaultEvent):
     @staticmethod
     def decode(s):
         """
-        Decodes a string to unicode using the appropriate charset.
+        Decodes UTF-8 bytes into a unicode string.
 
-        :param s: the IDA string
-        :return: the Python string
+        :param s: the utf-8 bytes
+        :return: the unicode string
         """
         if s is None:
             return None
@@ -282,15 +282,12 @@ class LocalTypesChangedEvent(Event):
             ida_typeinf.alloc_type_ordinals(None, missing_ord)
 
         for i, t in enumerate(self.local_type):
-            logger.debug("Processing: %d %s", i, str(t))
             if t is not None:
                 cur_tinfo = ida_typeinf.tinfo_t()
                 cur_tinfo.deserialize(None, t[0], t[1])
-                logger.debug("set_numbered_type ret: %d",
-                             cur_tinfo.set_numbered_type(None, i + 1, 0, t[2]))
+                cur_tinfo.set_numbered_type(None, i + 1, 0, t[2])
             else:
                 ida_typeinf.del_numbered_type(None, i + 1)
-
         ida_kernwin.request_refresh(ida_kernwin.IWID_LOCTYPS)
 
 
@@ -850,10 +847,10 @@ class UserLvarSettingsEvent(HexRaysEvent):
 
     @staticmethod
     def _get_tinfo(dct):
-        type = ida_typeinf.tinfo_t()
+        type_ = ida_typeinf.tinfo_t()
         if dct[0] is not None:
-            type.deserialize(None, *dct)
-        return type
+            type_.deserialize(None, *dct)
+        return type_
 
     @staticmethod
     def _get_lvar_locator(dct):

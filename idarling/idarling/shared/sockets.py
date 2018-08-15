@@ -50,6 +50,7 @@ class ClientSocket(QObject):
         QObject.__init__(self, parent)
         self._logger = logger
         self._socket = None
+        self._server = parent and isinstance(parent, ServerSocket)
 
         self._unpacker = msgpack.Unpacker(raw=False)
         self._read_buffer = bytearray()
@@ -134,7 +135,8 @@ class ClientSocket(QObject):
         for raw_packet in self._unpacker:
             if self._read_packet is None:
                 try:
-                    self._read_packet = Packet.parse_packet(raw_packet)
+                    self._read_packet = Packet.parse_packet(raw_packet,
+                                                            self._server)
                 except Exception as e:
                     msg = "Invalid packet received: %r" % raw_packet
                     self._logger.warning(msg)
