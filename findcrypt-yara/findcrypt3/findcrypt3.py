@@ -6,20 +6,19 @@ import idc
 import operator
 import yara
 import os
+import glob
 
 VERSION = "0.2"
 YARARULES_CFGFILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "findcrypt3.rules")
 
-IDAUSR = os.getenv('IDAUSR')
-if IDAUSR is not None:
-    USR_CFGFILE = os.path.join(IDAUSR, "findcrypt3.rules")
-    if not os.path.exists(USR_CFGFILE):
-        USR_CFGFILE =  None
-else:
-    IDAUSR = os.path.join(os.getenv('HOME'), ".idapro")
-    USR_CFGFILE = os.path.join(IDAUSR, "findcrypt3.rules")
-    if not os.path.exists(USR_CFGFILE):
-        USR_CFGFILE =  None
+USRDIR = os.path.join(os.getenv('HOME'), ".yara")
+if not os.path.exists(USRDIR):
+    os.makedirs(USRDIR)
+
+USRCFG = {}
+for fpath in glob.glob(os.path.join(USRDIR, "*.rules")):
+    name = os.path.basename(fpath)
+    USRCFG[name] = fpath
 
 try:
     class Kp_Menu_Context(idaapi.action_handler_t):
@@ -160,8 +159,11 @@ class Findcrypt_Plugin_t(idaapi.plugin_t):
             print("Findcrypt v{0} by David BERARD, 2017".format(VERSION))
             print("Findcrypt search shortcut key is Ctrl-Alt-F")
             print("Rules in %s" % YARARULES_CFGFILE)
-            if USR_CFGFILE:
-                print("Found user rules in %s" % USR_CFGFILE)
+            if USRCFG:
+                print("Found user rules in %s" % USRDIR)
+            else:
+                print("No user-defined rules in: %s" % USRDIR)
+
             print("=" * 80)
 
         return idaapi.PLUGIN_KEEP
@@ -180,8 +182,8 @@ class Findcrypt_Plugin_t(idaapi.plugin_t):
     def search(self):
         memory, offsets = self._get_memory()
         filepaths = {"global":YARARULES_CFGFILE}
-        if USR_CFGFILE:
-            filepaths.update({"user_rules": USR_CFGFILE})
+        if USRCFG:
+            filepaths.update(USRCFG)
         rules = yara.compile(filepaths=filepaths)
         values = self.yarasearch(memory, offsets, rules)
         c = YaraSearchResultChooser("Findcrypt results", values)
