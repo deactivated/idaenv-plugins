@@ -61,8 +61,8 @@ class Core(Module):
         self._idbHooks = IDBHooks(self._plugin)
         self._idpHooks = IDPHooks(self._plugin)
         self._hxeHooks = HexRaysHooks(self._plugin)
-        self._viewHooks = ViewHooks(self._plugin)
-        self._uiHooks = UIHooks(self._plugin)
+        # self._viewHooks = ViewHooks(self._plugin)
+        # self._uiHooks = UIHooks(self._plugin)
 
         class UIHooksCore(Hooks, ida_kernwin.UI_Hooks):
             """
@@ -125,8 +125,8 @@ class Core(Module):
         self._idbHooks.hook()
         self._idpHooks.hook()
         self._hxeHooks.hook()
-        self._viewHooks.hook()
-        self._uiHooks.hook()
+        # self._viewHooks.hook()
+        # self._uiHooks.hook()
 
     def unhook_all(self):
         """
@@ -135,8 +135,8 @@ class Core(Module):
         self._idbHooks.unhook()
         self._idpHooks.unhook()
         self._hxeHooks.unhook()
-        self._viewHooks.unhook()
-        self._uiHooks.unhook()
+        # self._viewHooks.unhook()
+        # self._uiHooks.unhook()
 
     @property
     def repo(self):
