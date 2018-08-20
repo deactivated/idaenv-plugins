@@ -10,6 +10,8 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
+from __future__ import unicode_literals
+
 import logging
 
 import ida_bytes
@@ -26,6 +28,7 @@ import ida_struct
 import ida_typeinf
 
 from .events import *
+from ..shared.commands import UpdateCursors
 
 logger = logging.getLogger('IDArling.Core')
 
@@ -128,7 +131,7 @@ class IDBHooks(Hooks, ida_idp.IDB_Hooks):
             if ret is not None:
                 type_str, fields_str = ret
                 type_name = ida_typeinf.get_numbered_type_name(
-                                ida_typeinf.cvar.idati, ordinal)
+                    ida_typeinf.cvar.idati, ordinal)
                 cur_ti = ida_typeinf.tinfo_t()
                 cur_ti.deserialize(ida_typeinf.cvar.idati, type_str,
                                    fields_str)
@@ -168,7 +171,7 @@ class IDBHooks(Hooks, ida_idp.IDB_Hooks):
             op = 'enum'
             id, serial = gather_enum_info(ea, n)
             ename = ida_enum.get_enum_name(id)
-            extra['ename'] = Event.decode(ename)
+            extra['ename'] = ename
             extra['serial'] = serial
         elif is_flag(flags & ida_bytes.stroff_flag()):
             op = 'struct'
@@ -179,7 +182,7 @@ class IDBHooks(Hooks, ida_idp.IDB_Hooks):
             spath = []
             for i in range(path_len):
                 sname = ida_struct.get_struc_name(path[i])
-                spath.append(Event.decode(sname))
+                spath.append(sname)
             extra['delta'] = delta.value()
             extra['spath'] = spath
         elif is_flag(ida_bytes.stkvar_flag()):
@@ -477,7 +480,7 @@ class HexRaysHooks(Hooks):
         while it != ida_hexrays.user_labels_end(user_labels):
             org_label = ida_hexrays.user_labels_first(it)
             name = ida_hexrays.user_labels_second(it)
-            labels.append((org_label, Event.decode(name)))
+            labels.append((org_label, name))
             it = ida_hexrays.user_labels_next(it)
         ida_hexrays.user_labels_free(user_labels)
         return labels
@@ -498,7 +501,7 @@ class HexRaysHooks(Hooks):
         while it != ida_hexrays.user_cmts_end(user_cmts):
             tl = ida_hexrays.user_cmts_first(it)
             cmt = ida_hexrays.user_cmts_second(it)
-            cmts.append(((tl.ea, tl.itp), Event.decode(str(cmt))))
+            cmts.append(((tl.ea, tl.itp), str(cmt)))
             it = ida_hexrays.user_cmts_next(it)
         ida_hexrays.user_cmts_free(user_cmts)
         return cmts
@@ -565,9 +568,9 @@ class HexRaysHooks(Hooks):
     def _get_lvar_saved_info(lv):
         return {
             'll': HexRaysHooks._get_lvar_locator(lv.ll),
-            'name': Event.decode(lv.name),
+            'name': lv.name,
             'type': HexRaysHooks._get_tinfo(lv.type),
-            'cmt': Event.decode(lv.cmt),
+            'cmt': lv.cmt,
             'flags': lv.flags,
         }
 
@@ -575,7 +578,12 @@ class HexRaysHooks(Hooks):
     def _get_tinfo(type):
         if type.empty():
             return None, None, None
-        return type.serialize()
+
+        type, fields, fldcmts = type.serialize()
+        type = Event.decode_bytes(type)
+        fields = Event.decode_bytes(fields)
+        fldcmts = Event.decode_bytes(fldcmts)
+        return type, fields, fldcmts
 
     @staticmethod
     def _get_lvar_locator(ll):
@@ -639,3 +647,61 @@ class HexRaysHooks(Hooks):
         if numforms != self._numforms:
             self._send_event(UserNumformsEvent(ea, numforms))
             self._numforms = numforms
+
+
+class ViewHooks(Hooks, ida_kernwin.View_Hooks):
+    """
+    The concrete class for View-related events.
+    """
+
+    def __init__(self, plugin):
+        ida_kernwin.View_Hooks.__init__(self)
+        Hooks.__init__(self, plugin)
+
+    def view_loc_changed(self, view, now, was):
+        if now.plce.toea() != was.plce.toea():
+            self._plugin.network.send_packet(UpdateCursors(now.plce.toea()))
+
+
+class UIHooks(Hooks, ida_kernwin.UI_Hooks):
+    """
+    The concrete class for UI-related events.
+    """
+
+    def __init__(self, plugin):
+        ida_kernwin.UI_Hooks.__init__(self)
+        Hooks.__init__(self, plugin)
+        self._state = {}
+        self._lock = False
+
+    def get_ea_hint(self, ea):
+        # TODO change IDArling team by username in the next commit
+        if self._plugin.network.connected:
+            nbytes = self._plugin.interface.painter.nbytes
+            painter = self._plugin.interface.painter
+            for infos in painter.users_positions.values():
+                address = infos['address']
+                if address - nbytes * 4 <= ea <= address + nbytes * 4:
+                    return("IDArling team")
+
+    def saving(self):
+        # clean users cursor
+        # saving and saved hook are triggered two times...
+        # This problem seems to be more general than that, we can see that the
+        # init of the plugin is called twice ... Maybe it's a problem coming
+        # from me. We need to figured it out. This bug was reproduced on IDA
+        # 7.0 on windows and IDA 7.1 on Linux
+        if not self._lock:
+            painter = self._plugin.interface.painter
+            users_positions = painter.users_positions
+            for user_position in users_positions.values():
+                address = user_position['address']
+                color = painter.clear_database(address)
+                self._state[color] = address
+        self._lock = not self._lock
+
+    def saved(self):
+        # restore users cursor
+        painter = self._plugin.interface.painter
+        for color, address in self._state.items():
+            painter.repaint_database(color, address)

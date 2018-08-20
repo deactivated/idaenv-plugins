@@ -22,7 +22,7 @@ import ida_netnode
 from ..module import Module
 from ..shared.commands import Subscribe, Unsubscribe
 from ..utilities.misc import local_resource
-from .hooks import Hooks, IDBHooks, IDPHooks, HexRaysHooks
+from .hooks import Hooks, IDBHooks, IDPHooks, HexRaysHooks, ViewHooks, UIHooks
 
 logger = logging.getLogger('IDArling.Core')
 
@@ -39,6 +39,8 @@ class Core(Module):
         self._idbHooks = None
         self._idpHooks = None
         self._hxeHooks = None
+        self._viewHooks = None
+        self._uiHooks = None
 
         self._uiHooksCore = None
         self._idbHooksCore = None
@@ -49,7 +51,7 @@ class Core(Module):
         self._tick = 0
 
         # Instance members
-        self._servers = []
+        self._config = {"servers": []}
 
     def _install(self):
         logger.debug("Installing hooks")
@@ -59,6 +61,8 @@ class Core(Module):
         self._idbHooks = IDBHooks(self._plugin)
         self._idpHooks = IDPHooks(self._plugin)
         self._hxeHooks = HexRaysHooks(self._plugin)
+        self._viewHooks = ViewHooks(self._plugin)
+        self._uiHooks = UIHooks(self._plugin)
 
         class UIHooksCore(Hooks, ida_kernwin.UI_Hooks):
             """
@@ -75,7 +79,8 @@ class Core(Module):
                 # Subscribe to the events stream if needed
                 if core.repo and core.branch:
                     self._plugin.network.send_packet(Subscribe(
-                        core.repo, core.branch, core.tick))
+                        core.repo, core.branch, core.tick,
+                        self._plugin.interface.painter.color))
                     core.hook_all()
 
         self._uiHooksCore = UIHooksCore(self._plugin)
@@ -91,7 +96,9 @@ class Core(Module):
                 Hooks.__init__(self, plugin)
 
             def closebase(self):
-                self._plugin.network.send_packet(Unsubscribe())
+                color = self._plugin.interface.painter.color
+                self._plugin.network.send_packet(Unsubscribe(color))
+                logger.debug("Sending unsubscribe packet")
                 core.unhook_all()
                 core.repo = None
                 core.branch = None
@@ -118,6 +125,8 @@ class Core(Module):
         self._idbHooks.hook()
         self._idpHooks.hook()
         self._hxeHooks.hook()
+        self._viewHooks.hook()
+        self._uiHooks.hook()
 
     def unhook_all(self):
         """
@@ -126,6 +135,8 @@ class Core(Module):
         self._idbHooks.unhook()
         self._idpHooks.unhook()
         self._hxeHooks.unhook()
+        self._viewHooks.unhook()
+        self._uiHooks.unhook()
 
     @property
     def repo(self):
@@ -190,7 +201,13 @@ class Core(Module):
         """
         node = ida_netnode.netnode(Core.NETNODE_NAME, 0, True)
         self._repo = node.hashval('repo') or None
+        if self._repo:
+            self._repo = self._repo.decode('utf-8')
+
         self._branch = node.hashval('branch') or None
+        if self._branch:
+            self._branch = self._branch.decode('utf-8')
+
         self._tick = int(node.hashval('tick') or '0')
 
         logger.debug("Loaded netnode: repo=%s, branch=%s, tick=%d"
@@ -202,9 +219,9 @@ class Core(Module):
         """
         node = ida_netnode.netnode(Core.NETNODE_NAME, 0, True)
         if self._repo:
-            node.hashset('repo', str(self._repo))
+            node.hashset('repo', self._repo.encode('utf-8'))
         if self._branch:
-            node.hashset('branch', str(self._branch))
+            node.hashset('branch', self._branch.encode('utf-8'))
         if self._tick:
             node.hashset('tick', str(self._tick))
 
@@ -218,7 +235,7 @@ class Core(Module):
 
         :return: the servers
         """
-        return self._servers
+        return self._config["servers"]
 
     @servers.setter
     def servers(self, servers):
@@ -227,44 +244,43 @@ class Core(Module):
 
         :param servers: the list of server
         """
-        self._servers = servers
+        self._config["servers"] = servers
         self.save_state()
 
     def load_state(self):
         """
         Load the state file.
+
+        The state file is now a json file in the form like this:
+        { "servers" : [
+            { "host": "127.0.0.1", "port": 3389, "no_ssl": True },
+            { "host": "127.0.0.2", "port": 3389, "no_ssl": True }
+            ]
+        }
         """
-        statePath = local_resource('files', 'state.json')
+        statePath = local_resource('files', 'config.json')
         if not os.path.isfile(statePath):
             return
         with open(statePath, 'rb') as stateFile:
             try:
-                state = json.loads(stateFile.read())
+                self._config = json.loads(stateFile.read())
             except ValueError:
                 logger.warning("Couldn't load state file")
                 return
-            logger.debug("Loaded state: %s" % state)
-
-            # Load the server list from state
-            Server = collections.namedtuple('Server',
-                                            ['host', 'port', 'no_ssl'])
-            if 'servers' in state:
-                self._servers = [Server(*addr) for addr in state['servers']]
+            logger.debug("Loaded state: %s" % self._config)
 
     def save_state(self):
         """
         Save the state file.
         """
-        statePath = local_resource('files', 'state.json')
+        statePath = local_resource('files', 'config.json')
         with open(statePath, 'wb') as stateFile:
-            state = {'servers': [[s.host, s.port, s.no_ssl]
-                                 for s in self._servers]}
-
-            logger.debug("Saved state: %s" % state)
-            stateFile.write(json.dumps(state))
+            logger.debug("Saved state: %s" % self._config)
+            stateFile.write(json.dumps(self._config))
 
     def notify_connected(self):
         if self._repo and self._branch:
+            color = self._plugin.interface.painter.color
             self._plugin.network.send_packet(
-                Subscribe(self._repo, self._branch, self._tick))
+                Subscribe(self._repo, self._branch, self._tick, color))
             self.hook_all()
