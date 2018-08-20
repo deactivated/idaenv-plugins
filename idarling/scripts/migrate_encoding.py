@@ -18,7 +18,7 @@ def encode_values(obj):
         return {k: encode_values(v) for k, v in obj.items()}
 
     if isinstance(obj, str):
-        return str.encode('utf8')
+        return obj.encode('utf-8')
 
     return obj
 
