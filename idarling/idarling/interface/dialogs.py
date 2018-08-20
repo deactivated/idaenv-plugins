@@ -19,14 +19,14 @@ import ida_loader
 import ida_nalt
 
 from PyQt5.QtCore import Qt, QRegExp
-from PyQt5.QtGui import QIcon, QRegExpValidator
+from PyQt5.QtGui import QIcon, QRegExpValidator, QColor
 from PyQt5.QtWidgets import (QDialog, QHBoxLayout, QVBoxLayout, QGridLayout,
                              QWidget, QTableWidget, QTableWidgetItem, QLabel,
                              QPushButton, QLineEdit, QGroupBox, QMessageBox,
-                             QCheckBox)
+                             QCheckBox, QTabWidget, QColorDialog)
 
-from ..shared.commands import (GetRepositories, GetBranches,
-                               NewRepository, NewBranch)
+from ..shared.commands import GetRepositories, GetBranches, \
+    NewRepository, NewBranch
 from ..shared.models import Repository, Branch
 
 logger = logging.getLogger('IDArling.Interface')
@@ -173,6 +173,7 @@ class OpenDialog(QDialog):
         """
         Refreshes the table of branches.
         """
+
         def createItem(text, branch):
             item = QTableWidgetItem(text)
             item.setData(Qt.UserRole, branch)
@@ -180,6 +181,7 @@ class OpenDialog(QDialog):
             if branch.tick == -1:
                 item.setFlags(item.flags() & ~Qt.ItemIsEnabled)
             return item
+
         self._branchesTable.setRowCount(len(self._branches))
         for i, branch in enumerate(self._branches):
             self._branchesTable.setItem(i, 0, createItem(branch.name, branch))
@@ -419,32 +421,35 @@ class NewBranchDialog(NewRepoDialog):
         self._nameLabel.setText("<b>Branch Name</b>")
 
 
-class NetworkSettingsDialog(QDialog):
+class SettingsDialog(QDialog):
     """
     The dialog allowing an user to select a remote server to connect to.
     """
 
     def __init__(self, plugin):
         """
-        Initialize the network settings dialog.
+        Initialize the settings dialog.
 
         :param plugin: the plugin instance
         """
-        super(NetworkSettingsDialog, self).__init__()
+        super(SettingsDialog, self).__init__()
         self._plugin = plugin
 
         # General setup of the dialog
-        logger.debug("Showing network settings dialog")
-        self.setWindowTitle("Network Settings")
+        logger.debug("Showing settings dialog")
+        self.setWindowTitle("Settings")
         iconPath = self._plugin.resource('settings.png')
         self.setWindowIcon(QIcon(iconPath))
 
+        tabs = QTabWidget(self)
+
+        # Network Settings tab
         layout = QHBoxLayout(self)
         servers = self._plugin.core.servers
         self._serversTable = QTableWidget(len(servers), 1, self)
         self._serversTable.setHorizontalHeaderLabels(("Servers",))
         for i, server in enumerate(servers):
-            item = QTableWidgetItem('%s:%d' % (server.host, server.port))
+            item = QTableWidgetItem('%s:%d' % (server["host"], server["port"]))
             item.setData(Qt.UserRole, server)
             item.setFlags(item.flags() & ~Qt.ItemIsEditable)
             self._serversTable.setItem(i, 0, item)
@@ -485,6 +490,94 @@ class NetworkSettingsDialog(QDialog):
         buttonsLayout.addWidget(self._quitButton)
         layout.addWidget(buttonsWidget)
 
+        tab = QWidget()
+        tab.setLayout(layout)
+        tabs.addTab(tab, "Network Settings")
+
+        self.resize(tab.sizeHint().width() + 5, tab.sizeHint().height() + 30)
+
+        # User Settings tab
+        layout = QVBoxLayout(self)
+        display = "Disable users display in the navigation bar"
+        noNavbarColorizerCheckbox = QCheckBox(display)
+
+        def noNavbarColorizerActionTriggered():
+            self._plugin.interface.painter.noNavbarColorizer = \
+                    noNavbarColorizerCheckbox.isChecked()
+        checkbox = noNavbarColorizerCheckbox
+        checkbox.toggled.connect(noNavbarColorizerActionTriggered)
+        checked = self._plugin.interface.painter.noNavbarColorizer
+        noNavbarColorizerCheckbox.setChecked(checked)
+        layout.addWidget(noNavbarColorizerCheckbox)
+
+        display = "Disable notifications"
+        noNotificationsCheckbox = QCheckBox(display)
+
+        def noNotificationsActionToggled():
+            self._plugin.interface.painter.noNotifications = \
+                    noNotificationsCheckbox.isChecked()
+        noNotificationsCheckbox.toggled.connect(noNotificationsActionToggled)
+        checked = self._plugin.interface.painter.noNotifications
+        noNotificationsCheckbox.setChecked(checked)
+        layout.addWidget(noNotificationsCheckbox)
+
+        # User color
+        colorWidget = QWidget(self)
+        colorLayout = QHBoxLayout(colorWidget)
+        colorButton = QPushButton("")
+        colorButton.setFixedSize(50, 30)
+
+        def setColor(color):
+            """
+            Sets the color (if valid) as user's color
+
+            :param color: the color
+            """
+            if color.isValid():
+                r, g, b, _ = color.getRgb()
+                rgbColor = r << 16 | g << 8 | b
+                # set the color as user's color
+                self._plugin.interface.painter.color = rgbColor
+                # set the background button color
+                palette = colorButton.palette()
+                role = colorButton.backgroundRole()
+                palette.setColor(role, color)
+                colorButton.setPalette(palette)
+                colorButton.setAutoFillBackground(True)
+
+        userColor = self._plugin.interface.painter.color
+        color = QColor(userColor)
+        setColor(color)
+
+        # Add a handler on clicking color button
+        def colorButtonClicked(_):
+            color = QColorDialog.getColor()
+            setColor(color)
+        colorButton.clicked.connect(colorButtonClicked)
+
+        colorLayout.addWidget(colorButton)
+
+        # User name
+        self.colorLabel = QLineEdit()
+        self.colorLabel.setPlaceholderText("Name")
+        name = self._plugin.interface.painter.name
+        self.colorLabel.setText(name)
+        colorLayout.addWidget(self.colorLabel)
+
+        buttonsWidget = QWidget(self)
+        buttonsLayout = QHBoxLayout(buttonsWidget)
+        self._acceptButton = QPushButton("OK")
+
+        self._acceptButton.clicked.connect(self.accept)
+        buttonsLayout.addWidget(self._acceptButton)
+
+        layout.addWidget(colorWidget)
+        layout.addWidget(buttonsWidget)
+
+        tab = QWidget()
+        tab.setLayout(layout)
+        tabs.addTab(tab, "User Settings")
+
     def _server_clicked(self, _):
         """
         Called when a server item is clicked.
@@ -516,15 +609,14 @@ class NetworkSettingsDialog(QDialog):
 
         :param dialog: the add server dialog
         """
-        host, port, no_ssl = dialog.get_result()
-        Server = namedtuple('Server', ['host', 'port', 'no_ssl'])
-        server = Server(host, port, no_ssl)
+        server = dialog.get_result()
         servers = self._plugin.core.servers
         servers.append(server)
         self._plugin.core.servers = servers
         rowCount = self._serversTable.rowCount()
         self._serversTable.insertRow(rowCount)
-        newServer = QTableWidgetItem('%s:%d' % (server.host, server.port))
+        newServer = QTableWidgetItem('%s:%d' %
+                                     (server["host"], server["port"]))
         newServer.setData(Qt.UserRole, server)
         newServer.setFlags(newServer.flags() & ~Qt.ItemIsEditable)
         self._serversTable.setItem(rowCount, 0, newServer)
@@ -536,15 +628,13 @@ class NetworkSettingsDialog(QDialog):
 
         :param dialog: the edit server dialog
         """
-        host, port, no_ssl = dialog.get_result()
-        Server = namedtuple('Server', ['host', 'port', 'no_ssl'])
-        server = Server(host, port, no_ssl)
+        server = dialog.get_result()
         servers = self._plugin.core.servers
         item = self._serversTable.selectedItems()[0]
         servers[item.row()] = server
         self._plugin.core.servers = servers
 
-        item.setText('%s:%d' % (server.host, server.port))
+        item.setText('%s:%d' % (server["host"], server["port"]))
         item.setData(Qt.UserRole, server)
         item.setFlags(item.flags() & ~Qt.ItemIsEditable)
         self.update()
@@ -560,6 +650,19 @@ class NetworkSettingsDialog(QDialog):
         self._plugin.core.servers = servers
         self._serversTable.removeRow(item.row())
         self.update()
+
+    def get_result(self):
+        """
+        Get the result (name, color, navbar coloration, notification) from this
+        dialog.
+
+        :return: the result
+        """
+        name = self.colorLabel.text()
+        color = self._plugin.interface.painter.color
+        notifications = self._plugin.interface.painter.noNotifications
+        navbarColorizer = self._plugin.interface.painter.noNavbarColorizer
+        return (name, color, notifications, navbarColorizer)
 
 
 class ServerInfoDialog(QDialog):
@@ -602,9 +705,9 @@ class ServerInfoDialog(QDialog):
         layout.addWidget(self._noSSLCheckbox)
 
         if server is not None:
-            self._serverName.setText(server.host)
-            self._serverPort.setText(str(server.port))
-            self._noSSLCheckbox.setChecked(server.no_ssl)
+            self._serverName.setText(server["host"])
+            self._serverPort.setText(str(server["port"]))
+            self._noSSLCheckbox.setChecked(server["no_ssl"])
 
         downSide = QWidget(self)
         buttonsLayout = QHBoxLayout(downSide)
@@ -622,6 +725,9 @@ class ServerInfoDialog(QDialog):
 
         :return: the result
         """
-        return (self._serverName.text() or "127.0.0.1",
-                int(self._serverPort.text() or "31013"),
-                self._noSSLCheckbox.isChecked())
+        new_server = {
+            "host": self._serverName.text() or "127.0.0.1",
+            "port": int(self._serverPort.text() or "31013"),
+            "no_ssl": self._noSSLCheckbox.isChecked()
+        }
+        return new_server
