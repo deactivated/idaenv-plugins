@@ -34,6 +34,7 @@ class ServerClient(ClientSocket):
         ClientSocket.__init__(self, logger, parent)
         self._repo = None
         self._branch = None
+        self._color = None
         self._handlers = {}
 
     def connect(self, sock):
@@ -189,7 +190,7 @@ class ServerClient(ClientSocket):
 
     def _should_forward(self, client):
         return client.repo == self._repo \
-                and client.branch == self._branch and client != self
+            and client.branch == self._branch and client != self
 
 
 class Server(ServerSocket):
