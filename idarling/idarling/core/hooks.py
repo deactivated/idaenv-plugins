@@ -597,12 +597,7 @@ class HexRaysHooks(Hooks):
     def _get_tinfo(type):
         if type.empty():
             return None, None, None
-
-        type, fields, fldcmts = type.serialize()
-        type = Event.decode_bytes(type)
-        fields = Event.decode_bytes(fields)
-        fldcmts = Event.decode_bytes(fldcmts)
-        return type, fields, fldcmts
+        return type.serialize()
 
     @staticmethod
     def _get_lvar_locator(ll):
