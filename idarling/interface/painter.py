@@ -96,14 +96,13 @@ class Painter(object):
                 # get default background and original navbar colorizer
                 #
 
-                painter = self._painter
-                painter.bg_color = get_ida_bg_color()
-                colorizer = painter.custom_nav_colorizer
+                self._painter.bg_color = get_ida_bg_color()
+                colorizer = self._painter.custom_nav_colorizer
                 ida_nav_colorizer = ida_kernwin.set_nav_colorizer(colorizer)
-                painter.ida_nav_colorizer = ida_nav_colorizer
+                self._painter.ida_nav_colorizer = ida_nav_colorizer
 
-        self._UIHooks = UIHooks(self)
-        result = self._UIHooks.hook()
+        self._uiHooks = UIHooks(self)
+        result = self._uiHooks.hook()
         if not result:
             raise RuntimeError("Failed to install painter")
 
@@ -117,7 +116,7 @@ class Painter(object):
         :return: did the uninstall succeed
         """
 
-        result = self._UIHooks.unhook()
+        result = self._uiHooks.unhook()
         if not result:
             raise RuntimeError("Uninstalled the painter")
 
@@ -261,7 +260,8 @@ class Painter(object):
         Clear paint from the given functions
 
         :param color: the color
-        :new_address: an address within the function where clear the color
+        :param new_address: an address within the function where the color
+                            needs to be cleared
         """
         user_position = self.users_positions.get(color)
         new_func = ida_funcs.get_func(new_address)
@@ -279,9 +279,7 @@ class Painter(object):
             self.clear_function_instructions(address)
             func = ida_funcs.get_func(address)
 
-            #
             # clear it only if previous func and new func are different
-            #
             if (func and not new_func) or \
                     (func and new_func and func != new_func):
                 color = self._painted_functions[func.startEA].pop()
