@@ -33,8 +33,8 @@ if sys.__stdout__.fileno() < 0:
 # in the console window. Used by wrap_excepthook.
 _ida_excepthook = sys.excepthook
 
-class IDATeeOutStream(ipykernel.iostream.OutStream):
 
+class IDATeeOutStream(ipykernel.iostream.OutStream):
     def write(self, string):
         "Write on both the previously saved IDA std output and zmq's stream"
         if self.name == "stdout" and _ida_stdout:
@@ -43,15 +43,19 @@ class IDATeeOutStream(ipykernel.iostream.OutStream):
             _ida_stderr.write(string)
         super(self.__class__, self).write(string)
 
+
 def wrap_excepthook(ipython_excepthook):
     """
     Return a function that will call both the ipython kernel execepthook
     and IDA's
     """
+
     def ipyida_excepthook(*args):
         _ida_excepthook(*args)
         ipython_excepthook(*args)
+
     return ipyida_excepthook
+
 
 class IPythonKernel(object):
     def __init__(self):
@@ -69,9 +73,7 @@ class IPythonKernel(object):
         if IPKernelApp.initialized():
             app = IPKernelApp.instance()
         else:
-            app = IPKernelApp.instance(
-                outstream_class='ipyida.kernel.IDATeeOutStream'
-            )
+            app = IPKernelApp.instance(outstream_class="ipyida.kernel.IDATeeOutStream")
             app.initialize()
 
             main = app.kernel.shell._orig_sys_modules_main_mod
@@ -88,9 +90,11 @@ class IPythonKernel(object):
         # Load the calling scope
         (ida_module, ida_locals) = IPython.utils.frame.extract_module_locals(1)
 
-        if 'idaapi' not in ida_locals:
-            raise Exception("{0:s} must be called from idapythonrc.py or "
-                            "IDA's prompt.".format("IPythonKernel.start"))
+        if "idaapi" not in ida_locals:
+            raise Exception(
+                "{0:s} must be called from idapythonrc.py or "
+                "IDA's prompt.".format("IPythonKernel.start")
+            )
 
         app.kernel.user_module = ida_module
         app.kernel.user_ns = ida_locals
@@ -101,11 +105,18 @@ class IPythonKernel(object):
         app.kernel.do_one_iteration()
 
         self.connection_file = app.connection_file
+        basename = os.path.basename(self.connection_file)
+        print(
+            "[IPyIDA] Connect with another client using --existing {}".format(basename)
+        )
 
         def ipython_kernel_iteration():
             app.kernel.do_one_iteration()
             return int(1000 * app.kernel._poll_interval)
-        self._timer = idaapi.register_timer(int(1000 * app.kernel._poll_interval), ipython_kernel_iteration)
+
+        self._timer = idaapi.register_timer(
+            int(1000 * app.kernel._poll_interval), ipython_kernel_iteration
+        )
 
     def stop(self):
         if self._timer is not None:
@@ -118,6 +129,7 @@ class IPythonKernel(object):
     @property
     def started(self):
         return self._timer is not None
+
 
 def do_one_iteration():
     """Perform an iteration on IPython kernel runloop"""
